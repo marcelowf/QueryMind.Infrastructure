@@ -1,0 +1,104 @@
+name: QueryMind-Infrastructure
+
+trigger: none
+
+variables:
+  - group: querymind-qa
+  - name: bkcontainer
+    value: "querymindstate"
+  - name: tfWorkingDirectory
+    value: "QueryMind.Foundation"
+  - name: tfstateKey
+    value: "querymindstate.tfstate"
+
+jobs:
+  - job: ApplyTerraform
+    displayName: "Run Terraform"
+    pool:
+      name: Azure Pipelines
+    steps:
+      - task: TerraformInstaller@1
+        displayName: "Terraform Install"
+        inputs:
+          terraformVersion: "1.6.6"
+
+      - task: AzureCLI@2
+        name: SetEnv
+        displayName: "Azure Terraform Variables"
+        inputs:
+          azureSubscription: $(service_connection_name)
+          scriptType: bash
+          scriptLocation: inlineScript
+          inlineScript: |
+            echo "##vso[task.setvariable variable=ARM_SUBSCRIPTION_ID]$(az account show --query id -o tsv)"
+            echo "##vso[task.setvariable variable=ARM_TENANT_ID]$(az account show --query tenantId -o tsv)"
+            echo "##vso[task.setvariable variable=ARM_CLIENT_ID]$(az account show --query user.name -o tsv)"
+
+      - task: Bash@3
+        displayName: "Local Terraform Variables"
+        inputs:
+          targetType: inline
+          workingDirectory: $(tfWorkingDirectory)
+          script: |
+            echo "subscription_id = \"$(subscription_id)\"" > querymind.auto.tfvars
+            echo "env_suffix = \"$(env_suffix)\"" >> querymind.auto.tfvars
+
+      - task: AzureCLI@2
+        displayName: "Terraform Init"
+        env:
+          ARM_SUBSCRIPTION_ID: $(ARM_SUBSCRIPTION_ID)
+          ARM_TENANT_ID: $(ARM_TENANT_ID)
+          ARM_CLIENT_ID: $(ARM_CLIENT_ID)
+        inputs:
+          workingDirectory: $(tfWorkingDirectory)
+          azureSubscription: $(service_connection_name)
+          scriptType: bash
+          scriptLocation: inlineScript
+          inlineScript: |
+            terraform init \
+              -backend-config="resource_group_name=$(bkstrgrg)" \
+              -backend-config="storage_account_name=$(bkstrg)" \
+              -backend-config="container_name=$(bkcontainer)" \
+              -backend-config="key=$(tfstateKey)"
+
+      - task: AzureCLI@2
+        displayName: "Terraform Validate"
+        env:
+          ARM_SUBSCRIPTION_ID: $(ARM_SUBSCRIPTION_ID)
+          ARM_TENANT_ID: $(ARM_TENANT_ID)
+          ARM_CLIENT_ID: $(ARM_CLIENT_ID)
+        inputs:
+          workingDirectory: $(tfWorkingDirectory)
+          azureSubscription: $(service_connection_name)
+          scriptType: bash
+          scriptLocation: inlineScript
+          inlineScript: |
+            terraform validate
+
+      - task: AzureCLI@2
+        displayName: "Terraform Plan"
+        env:
+          ARM_SUBSCRIPTION_ID: $(ARM_SUBSCRIPTION_ID)
+          ARM_TENANT_ID: $(ARM_TENANT_ID)
+          ARM_CLIENT_ID: $(ARM_CLIENT_ID)
+        inputs:
+          workingDirectory: $(tfWorkingDirectory)
+          azureSubscription: $(service_connection_name)
+          scriptType: bash
+          scriptLocation: inlineScript
+          inlineScript: |
+            terraform plan
+
+      - task: AzureCLI@2
+        displayName: "Terraform Apply"
+        env:
+          ARM_SUBSCRIPTION_ID: $(ARM_SUBSCRIPTION_ID)
+          ARM_TENANT_ID: $(ARM_TENANT_ID)
+          ARM_CLIENT_ID: $(ARM_CLIENT_ID)
+        inputs:
+          workingDirectory: $(tfWorkingDirectory)
+          azureSubscription: $(service_connection_name)
+          scriptType: bash
+          scriptLocation: inlineScript
+          inlineScript: |
+            terraform apply -auto-approve
