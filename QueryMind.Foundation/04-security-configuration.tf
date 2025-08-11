@@ -53,9 +53,31 @@ resource "azurerm_key_vault_secret" "frontend_url" {
   key_vault_id = module.kv_01.id
 }
 
+resource "random_password" "jwt_secret" {
+  length  = 64
+  special = true
+}
+
+resource "azurerm_key_vault_secret" "jwt_secret_key" {
+  name         = "JwtSecretKey"
+  value        = random_password.jwt_secret.result
+  key_vault_id = module.kv_01.id
+
+  lifecycle {
+    prevent_destroy = true
+    ignore_changes  = [value]
+  }
+}
+
 resource "azurerm_key_vault_secret" "db_connection_string" {
   name         = "ConnectionStrings--DefaultConnection"
   value        = module.cms_01.mongo_connection_string
+  key_vault_id = module.kv_01.id
+}
+
+resource "azurerm_key_vault_secret" "db_database_name" {
+  name         = "ConnectionStrings--DatabaseName"
+  value        = var.database_name
   key_vault_id = module.kv_01.id
 }
 

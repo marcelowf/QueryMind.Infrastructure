@@ -23,3 +23,8 @@ variable "common_app_settings" {
 variable "key_vault_public_access" {
   type = bool
 }
+
+variable "database_name" {
+  type = string
+  default = "queryminddb${var.env_suffix}"
+}
