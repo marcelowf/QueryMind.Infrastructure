@@ -6,10 +6,10 @@ module "cms_01" {
   database_name       = var.database_name
 
   collections = {
-    users = {
+    Users = {
       shard_key = "Id"
     }
-    conversations = {
+    Conversations = {
       shard_key = "UserId"
     }
   }
