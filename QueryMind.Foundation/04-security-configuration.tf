@@ -77,7 +77,13 @@ resource "azurerm_key_vault_secret" "db_connection_string" {
 
 resource "azurerm_key_vault_secret" "db_database_name" {
   name         = "ConnectionStrings--DatabaseName"
-  value        = var.database_name
+  value        = "queryminddb${var.env_suffix}"
+  key_vault_id = module.kv_01.id
+}
+
+resource "azurerm_key_vault_secret" "redis_connection_string" {
+  name         = "RedisConnectionStrings--DefaultConnection"
+  value        = "${module.arc_01.redis_name}:6380,password=${azurerm_redis_cache.arc_01.primary_access_key},ssl=True,abortConnect=False"
   key_vault_id = module.kv_01.id
 }
 
